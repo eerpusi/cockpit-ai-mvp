@@ -1,0 +1,2 @@
+# cockpit-ai-mvp
+Private
