@@ -29,7 +29,7 @@ async def ci_dispatch() -> str:
     return json.dumps({"ok": True, "repository": settings.github_repo, "workflow": settings.github_workflow}, ensure_ascii=False)
 
 async def main():
-    await server.run_sse_async(host="127.0.0.1", port=8090, sse_path="/sse", message_path="/messages/")
+    await server.run_streamable_http_async(host="127.0.0.1", port=8090, streamable_http_path="/mcp", stateless_http=True, json_response=True)
 
 if __name__ == "__main__":
     asyncio.run(main())

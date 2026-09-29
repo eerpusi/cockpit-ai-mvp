@@ -14,6 +14,7 @@ async def execute(run_id: str, issue_id: str, prompt: str, resume: str | None = 
         update_run(run_id, status="running")
         jira_context = ""
         github_context = ""
+        ci_context = ""
         try:
             jira_context = await mcp_call("jira_get_issue", {"issue_key": issue_id})
             update_run(run_id, jira_issue_loaded=True)
@@ -25,7 +26,13 @@ async def execute(run_id: str, issue_id: str, prompt: str, resume: str | None = 
             update_run(run_id, github_loaded=True)
         except Exception as github_error:
             update_run(run_id, github_loaded=False, github_error=str(github_error))
-        enriched_prompt = f"{jira_context}\n\n{github_context}\n\nUser instructions:\n{prompt}"
+        try:
+            await mcp_call("ci_dispatch", {})
+            ci_context = await mcp_call("ci_get_recent_runs", {})
+            update_run(run_id, ci_loaded=True)
+        except Exception as ci_error:
+            update_run(run_id, ci_loaded=False, ci_error=str(ci_error))
+        enriched_prompt = f"{jira_context}\n\n{github_context}\n\nCI context: {ci_context}\n\nUser instructions:\n{prompt}"
         async for message in run_code_review(issue_id, enriched_prompt, resume):
             event = serialize(message)
             append_event(run_id, event)

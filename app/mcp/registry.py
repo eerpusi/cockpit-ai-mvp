@@ -9,7 +9,7 @@ def _remote_server(url: str | None, token: str | None, transport: str):
     return {"type": transport, "url": url, "headers": headers}
 
 def configured_servers() -> dict:
-    servers = {"engineering": {"type": "sse", "url": settings.mcp_gateway_url.replace("/mcp", "/sse"), "headers": {}}}
+    servers = {"engineering": {"type": "http", "url": settings.mcp_gateway_url, "headers": {}}}
     for name, url, token, transport in [
         ("git", settings.git_mcp_url, settings.git_mcp_auth_token, settings.git_mcp_transport),
         ("jira", settings.jira_mcp_url, settings.jira_mcp_auth_token, settings.jira_mcp_transport),
