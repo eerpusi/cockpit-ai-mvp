@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Cockpit AI MVP（开发环境真实链路）
 
 这是一个可直接启动的开发环境 vertical slice，不包含 Mock 工具层：
@@ -54,3 +55,7 @@ MCP 工具名由真实服务发现，不在业务代码里伪造固定返回值�
   → 结构化评审结果
   → 可回放的 Run 记录
 ```
+=======
+# cockpit-ai-mvp
+Private
+>>>>>>> origin/main
