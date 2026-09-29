@@ -59,3 +59,22 @@ MCP 工具名由真实服务发现，不在业务代码里伪造固定返回值�
 # cockpit-ai-mvp
 Private
 >>>>>>> origin/main
+
+## 外部 MCP Gateway
+
+开发环境启动主应用即可自动启动真实 MCP Gateway：
+
+```bash
+set -o allexport; source .env; set +o allexport
+uvicorn app.main:app --host 127.0.0.1 --port 8080
+```
+
+主应用会启动 MCP Gateway，地址为 `http://127.0.0.1:8090/mcp`。Gateway 暴露真实工具：
+
+- `jira_get_issue`
+- `jira_add_comment`
+- `github_get_repository_context`
+- `ci_get_recent_runs`
+- `ci_dispatch`
+
+工作流只通过 MCP 协议访问这些能力，Gateway 内部再调用真实 Jira、GitHub 和 GitHub Actions API。
