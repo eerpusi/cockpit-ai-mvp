@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     git_mcp_transport: str = "http"
     git_mcp_auth_token: str | None = None
     jira_base_url: str | None = None
+    jira_project_key: str = "COCKPIT"
     jira_email: str | None = None
     atlassian_api_token: str | None = None
     github_token: str | None = None

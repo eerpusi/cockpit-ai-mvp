@@ -8,6 +8,8 @@ from pydantic import BaseModel
 from app.settings import settings
 from app.storage.runs import create_run, get_run
 from app.mcp.registry import public_status
+from app.mcp.client import call as mcp_call
+import json
 from app.workflows.code_review import execute
 
 _gateway_process = None
@@ -42,6 +44,13 @@ class ReviewRequest(BaseModel):
 def index(): return FileResponse(Path(__file__).parent / "web/index.html")
 @app.get("/health")
 def health(): return {"status": "ok", "workspace": str(settings.workspace), "mcp": public_status()}
+@app.get("/jira/issues")
+async def list_jira_issues():
+    try:
+        data = json.loads(await mcp_call("jira_list_issues", {"project_key": settings.jira_project_key, "max_results": 50}))
+        return data
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Jira issue list unavailable: {exc}")
 @app.post("/workflow/code-review", status_code=202)
 async def start_review(request: ReviewRequest):
     run_id = create_run(request.issue_id, request.prompt, request.resume_session_id)

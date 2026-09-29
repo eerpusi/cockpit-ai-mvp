@@ -47,3 +47,15 @@ def _post_comment_sync(issue_key: str, body: str):
 
 async def add_comment(issue_key: str, body: str) -> dict:
     return await asyncio.to_thread(_post_comment_sync, issue_key, body)
+
+
+def _search_issues_sync(jql: str):
+    if not settings.jira_base_url or not settings.jira_email or not settings.atlassian_api_token:
+        raise RuntimeError("Jira is not configured")
+    raw = f"{settings.jira_email}:{settings.atlassian_api_token}".encode()
+    payload = json.dumps({"jql": jql, "maxResults": 50, "fields": ["summary", "status", "description", "updated"]}).encode()
+    req = Request(f"{settings.jira_base_url.rstrip('/')}/rest/api/3/search/jql", data=payload, method="POST", headers={"Authorization": "Basic " + base64.b64encode(raw).decode(), "Accept": "application/json", "Content-Type": "application/json"})
+    with urlopen(req, timeout=30) as response: return json.loads(response.read().decode())
+
+async def search_issues(jql: str) -> dict:
+    return await asyncio.to_thread(_search_issues_sync, jql)

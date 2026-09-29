@@ -1,10 +1,19 @@
 import asyncio, json
 from mcp.server.mcpserver import MCPServer
 from app.settings import settings
-from app.integrations.jira import get_issue, issue_context, add_comment
+from app.integrations.jira import get_issue, issue_context, add_comment, search_issues
 from app.integrations.github import get_context, get_recent_runs, dispatch_ci
 
 server = MCPServer(name="cockpit-engineering", version="0.1.0", instructions="真实研发系统 MCP Gateway：Jira、GitHub 和 CI。")
+
+@server.tool(name="jira_list_issues", description="列出真实 Jira 项目中的研发 Issue。")
+async def jira_list_issues(project_key: str, max_results: int = 50) -> str:
+    data = await search_issues(f"project = {project_key} ORDER BY updated DESC")
+    issues = []
+    for issue in data.get("issues", [])[:max_results]:
+        fields = issue.get("fields", {})
+        issues.append({"key": issue.get("key"), "summary": fields.get("summary", ""), "status": (fields.get("status") or {}).get("name", ""), "updated": fields.get("updated")})
+    return json.dumps({"issues": issues}, ensure_ascii=False)
 
 @server.tool(name="jira_get_issue", description="读取真实 Jira Issue 的标题、描述和状态。")
 async def jira_get_issue(issue_key: str) -> str:

@@ -10,7 +10,7 @@
 <body><main class="shell">
 <header class="top"><div><div class="brand">Cockpit AI · 研发流程</div><div class="sub">真实 Jira → Agent → Skill / Plugin → 代码评审</div></div><div id="health" class="pill">检查服务中…</div></header>
 <div class="grid"><section class="card"><h2>发起一次真实评审</h2>
-<div class="field"><label>Jira Issue</label><input id="issue" value="COCKPIT-1" placeholder="例如 COCKPIT-1"></div>
+<div class="field"><label>Jira Issue</label><select id="issue"><option value="">正在加载 Jira Issue…</option></select><div class="meta">从 COCKPIT 项目自动读取真实 Issue</div></div>
 <div class="field"><label>任务说明</label><textarea id="prompt">请读取这个 Jira 需求和本地代码，完成代码评审并生成测试建议。</textarea></div>
 <button id="start" class="btn" onclick="startRun()">开始评审</button><div id="status" class="status">等待发起任务</div><div id="meta" class="meta"></div></section>
 <section><div class="steps" id="steps"><div class="step" data-step="jira"><b>01 Jira</b><span>等待</span></div><div class="step" data-step="agent"><b>02 Agent</b><span>等待</span></div><div class="step" data-step="skill"><b>03 Skill / Plugin</b><span>等待</span></div><div class="step" data-step="code"><b>04 代码分析</b><span>等待</span></div><div class="step" data-step="result"><b>05 评审结果</b><span>等待</span></div></div>
@@ -22,6 +22,7 @@ const $=id=>document.getElementById(id);
 function setStep(name,state,text){const el=document.querySelector(`[data-step="${name}"]`);if(!el)return;el.className='step '+state;el.querySelector('span').textContent=text}
 function resetSteps(){['jira','agent','skill','code','result'].forEach(x=>setStep(x,'','等待'))}
 function eventText(e){if(!e)return '';if(e.type==='assistant'&&e.message?.content)return JSON.stringify(e.message.content);if(e.result)return String(e.result);if(e.structured_output)return JSON.stringify(e.structured_output);if(e.type)return e.type;return JSON.stringify(e)}
+async function loadIssues(){try{const r=await fetch(API+'/jira/issues');const d=await r.json();if(!r.ok)throw Error(d.detail||'读取失败');const el=$('issue');el.innerHTML=d.issues?.length?d.issues.map(x=>`<option value=\"${x.key}\">${x.key} · ${x.summary} · ${x.status}</option>`).join(''):'<option value=\"\">没有可用 Issue</option>';}catch(e){$('issue').innerHTML='<option value=\"COCKPIT-1\">COCKPIT-1（Issue 列表读取失败）</option>';}}
 async function startRun(){clearInterval(timer);lastCount=0;resetSteps();$('log').textContent='';$('result').innerHTML='<div class="empty">Agent 执行中…</div>';$('start').disabled=true;$('status').textContent='正在创建 Run…';
  try{const r=await fetch(API+'/workflow/code-review',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({issue_id:$('issue').value.trim(),prompt:$('prompt').value})});const x=await r.json();if(!r.ok)throw Error(x.detail||'启动失败');$('meta').textContent='Run ID: '+x.run_id;$('status').textContent='已排队';timer=setInterval(()=>poll(x.run_id),1000);poll(x.run_id)}catch(e){$('status').textContent='启动失败：'+e.message;$('start').disabled=false}}
 async function poll(id){try{const r=await fetch(API+'/workflow/runs/'+id);const d=await r.json();if(!r.ok)throw Error(d.detail);$('status').textContent='状态：'+d.status;$('meta').textContent=`Run ID: ${d.id}${d.session_id?' · Session: '+d.session_id:''}`;
@@ -33,5 +34,5 @@ async function poll(id){try{const r=await fetch(API+'/workflow/runs/'+id);const 
  if(d.status==='failed'){['jira','agent','skill','code','result'].forEach(x=>{if(!document.querySelector(`[data-step="${x}"]`).classList.contains('done'))setStep(x,'error','失败')});$('status').textContent='执行失败：'+(d.error||'未知错误');clearInterval(timer);$('start').disabled=false}
  if(d.status==='completed'){clearInterval(timer);$('start').disabled=false;$('status').textContent='执行完成'}
  }catch(e){$('status').textContent='读取 Run 失败：'+e.message}}
-async function health(){try{const r=await fetch(API+'/health');const d=await r.json();$('health').textContent=d.status==='ok'?'服务正常':'服务异常'}catch(e){$('health').textContent='服务未启动'}}health();
+async function health(){try{const r=await fetch(API+'/health');const d=await r.json();$('health').textContent=d.status==='ok'?'服务正常':'服务异常'}catch(e){$('health').textContent='服务未启动'}}health();loadIssues();
 </script></body></html>
