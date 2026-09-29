@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cockpit AI · 研发流程</title>
+<style>
+:root{--bg:#f6f8fb;--card:#fff;--text:#172033;--muted:#667085;--line:#e4e7ec;--blue:#2563eb;--green:#16a34a;--amber:#d97706;--red:#dc2626}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow-x:hidden}.shell{max-width:1180px;margin:0 auto;padding:28px}.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:22px}.brand{font-size:24px;font-weight:700}.sub{color:var(--muted);margin-top:3px}.pill{border:1px solid #bfdbfe;color:#1d4ed8;background:#eff6ff;border-radius:20px;padding:6px 12px}.grid{display:flex;flex-direction:column;gap:18px;min-width:0}.grid>*,.two>*,.steps>*{min-width:0}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 2px 8px #10182808}.card h2{font-size:16px;margin:0 0 14px}.field{margin-bottom:14px}.field label{display:block;font-weight:600;margin-bottom:6px}.field input,.field textarea{width:100%;border:1px solid #d0d5dd;border-radius:8px;padding:10px;font:inherit}.field textarea{height:130px;resize:vertical}.btn{width:100%;border:0;border-radius:8px;padding:11px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer}.btn:disabled{opacity:.5;cursor:not-allowed}.status{margin-top:14px;color:var(--muted);min-height:22px}.steps{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}.step{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fafafa;color:var(--muted);display:flex;align-items:center;gap:12px}.step b{min-width:150px}.step b{display:block;color:var(--text);font-size:12px;margin-bottom:0}.step.active{border-color:#93c5fd;background:#eff6ff;color:#1d4ed8}.step.done{border-color:#86efac;background:#f0fdf4;color:#15803d}.step.error{border-color:#fecaca;background:#fef2f2;color:#b91c1c}.two{display:flex;flex-direction:column;gap:18px}.log{height:300px;max-width:100%;overflow:auto;overflow-wrap:anywhere;word-break:break-word;background:#101828;color:#d1e9ff;border-radius:9px;padding:12px;font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap}.result{min-height:300px;max-width:100%;overflow-wrap:anywhere;word-break:break-word;background:#f8fafc;border:1px solid var(--line);border-radius:9px;padding:12px;white-space:pre-wrap;overflow:auto;overflow-x:hidden}.empty{color:var(--muted);padding:28px 4px;text-align:center}.meta{color:var(--muted);font-size:12px;margin-top:10px;word-break:break-all}@media(max-width:600px){.shell{padding:16px}.step{display:block}.step b{margin-bottom:3px}}
+</style></head>
+<body><main class="shell">
+<header class="top"><div><div class="brand">Cockpit AI · 研发流程</div><div class="sub">真实 Jira → Agent → Skill / Plugin → 代码评审</div></div><div id="health" class="pill">检查服务中…</div></header>
+<div class="grid"><section class="card"><h2>发起一次真实评审</h2>
+<div class="field"><label>Jira Issue</label><input id="issue" value="COCKPIT-1" placeholder="例如 COCKPIT-1"></div>
+<div class="field"><label>任务说明</label><textarea id="prompt">请读取这个 Jira 需求和本地代码，完成代码评审并生成测试建议。</textarea></div>
+<button id="start" class="btn" onclick="startRun()">开始评审</button><div id="status" class="status">等待发起任务</div><div id="meta" class="meta"></div></section>
+<section><div class="steps" id="steps"><div class="step" data-step="jira"><b>01 Jira</b><span>等待</span></div><div class="step" data-step="agent"><b>02 Agent</b><span>等待</span></div><div class="step" data-step="skill"><b>03 Skill / Plugin</b><span>等待</span></div><div class="step" data-step="code"><b>04 代码分析</b><span>等待</span></div><div class="step" data-step="result"><b>05 评审结果</b><span>等待</span></div></div>
+<div class="two"><div class="card"><h2>执行日志</h2><div id="log" class="log"><span class="empty">任务启动后将在这里显示实时消息…</span></div></div><div class="card"><h2>结构化结果</h2><div id="result" class="result"><div class="empty">等待 Agent 完成</div></div></div></div></section></div></main>
+<script>
+let timer=null, lastCount=0;
+const API=(location.protocol==='file:'?'http://127.0.0.1:8080':'');
+const $=id=>document.getElementById(id);
+function setStep(name,state,text){const el=document.querySelector(`[data-step="${name}"]`);if(!el)return;el.className='step '+state;el.querySelector('span').textContent=text}
+function resetSteps(){['jira','agent','skill','code','result'].forEach(x=>setStep(x,'','等待'))}
+function eventText(e){if(!e)return '';if(e.type==='assistant'&&e.message?.content)return JSON.stringify(e.message.content);if(e.result)return String(e.result);if(e.structured_output)return JSON.stringify(e.structured_output);if(e.type)return e.type;return JSON.stringify(e)}
+async function startRun(){clearInterval(timer);lastCount=0;resetSteps();$('log').textContent='';$('result').innerHTML='<div class="empty">Agent 执行中…</div>';$('start').disabled=true;$('status').textContent='正在创建 Run…';
+ try{const r=await fetch(API+'/workflow/code-review',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({issue_id:$('issue').value.trim(),prompt:$('prompt').value})});const x=await r.json();if(!r.ok)throw Error(x.detail||'启动失败');$('meta').textContent='Run ID: '+x.run_id;$('status').textContent='已排队';timer=setInterval(()=>poll(x.run_id),1000);poll(x.run_id)}catch(e){$('status').textContent='启动失败：'+e.message;$('start').disabled=false}}
+async function poll(id){try{const r=await fetch(API+'/workflow/runs/'+id);const d=await r.json();if(!r.ok)throw Error(d.detail);$('status').textContent='状态：'+d.status;$('meta').textContent=`Run ID: ${d.id}${d.session_id?' · Session: '+d.session_id:''}`;
+ if(d.jira_issue_loaded){setStep('jira','done','已读取')}else if(d.status==='running'){setStep('jira','active','读取中')}
+ if(['running','completed'].includes(d.status))setStep('agent',d.status==='completed'?'done':'active',d.status==='completed'?'已完成':'运行中');
+ if(d.messages?.length){setStep('skill','done','已加载');setStep('code',d.status==='completed'?'done':'active',d.status==='completed'?'已完成':'分析中')}
+ if(d.result){setStep('result','done','已生成');$('result').textContent=typeof d.result==='string'?d.result:JSON.stringify(d.result,null,2)}
+ const msgs=(d.messages||[]).slice(-80);$('log').textContent=msgs.map((e,i)=>`[${i+1}] ${eventText(e)}`).join('\n\n')||'等待消息…';$('log').scrollTop=$('log').scrollHeight;
+ if(d.status==='failed'){['jira','agent','skill','code','result'].forEach(x=>{if(!document.querySelector(`[data-step="${x}"]`).classList.contains('done'))setStep(x,'error','失败')});$('status').textContent='执行失败：'+(d.error||'未知错误');clearInterval(timer);$('start').disabled=false}
+ if(d.status==='completed'){clearInterval(timer);$('start').disabled=false;$('status').textContent='执行完成'}
+ }catch(e){$('status').textContent='读取 Run 失败：'+e.message}}
+async function health(){try{const r=await fetch(API+'/health');const d=await r.json();$('health').textContent=d.status==='ok'?'服务正常':'服务异常'}catch(e){$('health').textContent='服务未启动'}}health();
+</script></body></html>
