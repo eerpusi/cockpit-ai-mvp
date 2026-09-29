@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     github_repo: str = "eerpusi/cockpit-ai-mvp"
     github_default_branch: str = "main"
     github_workflow: str = ".github/workflows/ci.yml"
+    mcp_gateway_url: str = "http://127.0.0.1:8090/mcp"
     jira_mcp_url: str | None = None
     jira_mcp_transport: str = "http"
     jira_mcp_auth_token: str | None = None

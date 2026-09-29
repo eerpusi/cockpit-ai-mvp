@@ -1,7 +1,6 @@
 from dataclasses import asdict, is_dataclass
 from app.agents.runtime import run_code_review
-from app.integrations.jira import get_issue, issue_context, add_comment
-from app.integrations.github import get_context, get_recent_runs
+from app.mcp.client import call as mcp_call
 from app.storage.runs import append_event, finish_run, update_run
 
 def serialize(value):
@@ -16,13 +15,13 @@ async def execute(run_id: str, issue_id: str, prompt: str, resume: str | None = 
         jira_context = ""
         github_context = ""
         try:
-            jira_context = issue_context(await get_issue(issue_id))
+            jira_context = await mcp_call("jira_get_issue", {"issue_key": issue_id})
             update_run(run_id, jira_issue_loaded=True)
         except Exception as jira_error:
             update_run(run_id, jira_issue_loaded=False, jira_error=str(jira_error))
         try:
-            gh = await get_context()
-            github_context = "GitHub repository: " + str(gh)
+            gh = await mcp_call("github_get_repository_context", {})
+            github_context = "GitHub repository context: " + gh
             update_run(run_id, github_loaded=True)
         except Exception as github_error:
             update_run(run_id, github_loaded=False, github_error=str(github_error))
@@ -41,7 +40,7 @@ async def execute(run_id: str, issue_id: str, prompt: str, resume: str | None = 
             result = current["result"]
             comment = "AI 代码评审结果（开发环境）\n\n" + str(result.get("summary", result))
             try:
-                await add_comment(issue_id, comment)
+                await mcp_call("jira_add_comment", {"issue_key": issue_id, "comment": comment})
                 update_run(run_id, jira_comment_written=True)
             except Exception as comment_error:
                 update_run(run_id, jira_comment_written=False, jira_comment_error=str(comment_error))
